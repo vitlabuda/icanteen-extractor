@@ -1,0 +1,9 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="icanteen-extractor:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/icanteen_extractor_jar</output-path>
+    <root id="archive" name="icanteen-extractor.jar">
+      <element id="module-output" name="icanteen-extractor" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/org/jsoup/jsoup/1.13.1/jsoup-1.13.1.jar" path-in-jar="/" />
+    </root>
+  </artifact>
+</component>
