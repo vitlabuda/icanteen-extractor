@@ -1,0 +1,10 @@
+*** Version 2.0 ***
+- code refactoring
+- added support for parsing different forms of food menus
+- added dish place to FoodMenu.Dish
+- fixed dish description prettification
+
+
+
+*** Version 1.0 ***
+- initial release

@@ -44,8 +44,6 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 */
 
 import java.io.Serializable;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 
@@ -57,25 +55,16 @@ public class FoodMenu implements Serializable {
      * A class representing a single day, containing one or more dishes.
      */
     public static final class Day implements Serializable {
-        private static final SimpleDateFormat DATE_FORMATTER = new SimpleDateFormat("yyyy-MM-dd");
-
         private final Date date;
         private final ArrayList<Dish> dishes = new ArrayList<>();
 
         /**
          * Instantiates the FoodMenu.Day class.
          *
-         * @param iCanteenDateString A date string from the iCanteen login page in this format: day-yyyy-MM-dd
-         * @throws ICanteenExtractorException If the iCanteen date string is invalid.
+         * @param date The date of the day
          */
-        public Day(String iCanteenDateString) throws ICanteenExtractorException {
-            try {
-                String cutString = iCanteenDateString.trim().substring(4); // cuts of the "day-" part
-                this.date = DATE_FORMATTER.parse(cutString);
-
-            } catch (IndexOutOfBoundsException | ParseException e) {
-                throw new ICanteenExtractorException("The iCanteen date string is invalid! (" + iCanteenDateString + ")", e);
-            }
+        public Day(Date date) {
+            this.date = date;
         }
 
         /**
@@ -102,6 +91,7 @@ public class FoodMenu implements Serializable {
      */
     public static final class Dish implements Serializable {
         private final String dishName;
+        private final String dishPlace;
         private final String dishDescription;
 
         /**
@@ -110,16 +100,18 @@ public class FoodMenu implements Serializable {
          * @param dishName The name of the dish, e.g. "Food 1".
          * @param dishDescription The description of the dish, e.g. "Ham and eggs".
          */
-        public Dish(String dishName, String dishDescription) {
+        public Dish(String dishName, String dishPlace, String dishDescription) {
             this.dishName = dishName.trim();
+            this.dishPlace = dishPlace.trim();
             this.dishDescription = prettifyDishDescription(dishDescription.trim()).trim();
         }
 
         private String prettifyDishDescription(String dishDescription) {
             dishDescription = dishDescription.replace("*", "");
             dishDescription = dishDescription.replace(",", ", ");
-            dishDescription = dishDescription.replaceAll("/.*/", "");
+            dishDescription = dishDescription.replaceAll("\\s+,", ",");
             dishDescription = dishDescription.replaceAll("\\s+", " ");
+
             return dishDescription;
         }
 
@@ -130,6 +122,15 @@ public class FoodMenu implements Serializable {
          */
         public String getDishName() {
             return dishName;
+        }
+
+        /**
+         * Gets the place of the dish, e.g. "Main canteen".
+         *
+         * @return The place of the dish. Can be empty.
+         */
+        public String getDishPlace() {
+            return dishPlace;
         }
 
         /**

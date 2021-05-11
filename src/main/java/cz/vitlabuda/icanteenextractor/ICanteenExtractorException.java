@@ -47,6 +47,20 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * Generic exception thrown by this library.
  */
 public class ICanteenExtractorException extends Exception {
+    /**
+     * Exception thrown when no food menu is found on the iCanteen login page.
+     */
+    public static class NoFoodMenuException extends ICanteenExtractorException {
+        /**
+         * Instantiates the NoFoodMenuException class.
+         *
+         * @param message The error message to carry.
+         */
+        public NoFoodMenuException(String message) {
+            super(message);
+        }
+    }
+
     private final Throwable carriedError;
 
     /**

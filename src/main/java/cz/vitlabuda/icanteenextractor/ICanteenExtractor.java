@@ -43,28 +43,31 @@ COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER I
 OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
-
-import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLException;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.SocketTimeoutException;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.Iterator;
 
 /**
  * The main class used to extract food menus from the iCanteen login page.
  */
 public class ICanteenExtractor {
-    public static final int LIBRARY_VERSION = 1;
-    public static final String LIBRARY_VERSION_STRING = "1.0";
+    public static final int LIBRARY_VERSION = 2;
+    public static final String LIBRARY_VERSION_STRING = "2.0";
 
     private static final String LINE_SEPARATOR = System.lineSeparator();
+
+    private final FoodMenuParserBase[] foodMenuParsers = new FoodMenuParserBase[] {
+        new NewExtendedMenuParser(),
+        new SimpleMenuParser(),
+        new OldExtendedMenuParser()
+    };
 
     private String userAgent = null;
     private int timeoutMilliseconds = -1;
@@ -120,9 +123,9 @@ public class ICanteenExtractor {
      * @throws ICanteenExtractorException If anything goes wrong while fetching and parsing the food menu.
      */
     public FoodMenu extract(URL url) throws ICanteenExtractorException {
-        // both a security measure and a "protection" against a malformed HTTPS URL
-        if(!url.getProtocol().equals("https"))
-            throw new ICanteenExtractorException("The supplied URL has an invalid protocol! (only the HTTPS protocol is allowed)");
+        String protocol = url.getProtocol();
+        if(!protocol.equals("https") && !protocol.equals("http"))
+            throw new ICanteenExtractorException("The supplied URL has an invalid protocol!");
 
         String html = fetchHTMLFromURL(url);
 
@@ -135,9 +138,9 @@ public class ICanteenExtractor {
     private String fetchHTMLFromURL(URL url) throws ICanteenExtractorException {
         StringBuilder htmlBuilder = new StringBuilder();
 
-        HttpsURLConnection connection = null;
+        HttpURLConnection connection = null;
         try {
-            connection = (HttpsURLConnection) url.openConnection();
+            connection = (HttpURLConnection) url.openConnection();
             connection.setInstanceFollowRedirects(false);
             connection.setUseCaches(false);
             connection.setDoOutput(false);
@@ -179,46 +182,34 @@ public class ICanteenExtractor {
     }
 
     private FoodMenu parseHTMLToFoodMenu(String html) throws ICanteenExtractorException {
-        FoodMenu foodMenu = new FoodMenu();
+        Throwable lastExceptionOrError = null;
 
-        try {
-            Document document = Jsoup.parse(html);
-
-            for(Element jidelnicekDen : document.selectFirst(".jidelnicekWeb").select(".jidelnicekDen")) { // day
-                String dateString = jidelnicekDen.selectFirst(".jidelnicekTop").attr("id");
-                FoodMenu.Day day = new FoodMenu.Day(dateString);
-
-                for(Element container : jidelnicekDen.select(".container")) { // dish
-                    Elements jidelnicekItems = container.select(".jidelnicekItem");
-
-                    String dishName = jidelnicekItems.get(0).text();
-                    String dishContent = jidelnicekItems.get(1).text();
-
-                    FoodMenu.Dish dish = new FoodMenu.Dish(dishName, dishContent);
-                    day.getDishes().add(dish);
-                }
-
-                foodMenu.getDays().add(day);
+        // The parsers are registered & instantiated in the foodMenuParsers instance variable.
+        for(FoodMenuParserBase foodMenuParser : foodMenuParsers) {
+            try {
+                return foodMenuParser.parseHTMLToFoodMenu(html);
+            } catch (Exception | Error e) {
+                lastExceptionOrError = e;
             }
-
-        } catch (ICanteenExtractorException e) {
-            throw e;
-        } catch (Exception | Error e) { // it's not clear what Jsoup throws
-            throw new ICanteenExtractorException("An error occurred while parsing the HTML webpage!", e);
         }
 
-        return foodMenu;
+        throw new ICanteenExtractorException("An error occurred while parsing the HTML webpage!", lastExceptionOrError);
     }
 
     private void verifyParsedFoodMenu(FoodMenu foodMenu) throws ICanteenExtractorException {
+        Iterator<FoodMenu.Day> dayIterator = foodMenu.getDays().iterator();
+        while(dayIterator.hasNext()) {
+            ArrayList<FoodMenu.Dish> currentDishes = dayIterator.next().getDishes();
+
+            currentDishes.removeIf(currentDish -> currentDish.getDishName().isEmpty() || currentDish.getDishDescription().isEmpty());
+
+            if(currentDishes.isEmpty())
+                dayIterator.remove();
+        }
+
         // This can happen, if the canteen hasn't published any food menu - it doesn't have to be an error, if the program using the library wishes so
         // -> the reason why a special exception is thrown.
         if(foodMenu.getDays().isEmpty())
-            throw new NoFoodMenuException("No food menu was present on the supplied URL!"); // NoFoodMenuException extends ICanteenExtractorException
-
-        for(FoodMenu.Day day : foodMenu.getDays()) {
-            if(day.getDishes().isEmpty())
-                throw new ICanteenExtractorException("A day without any dishes was found while parsing the food menu!");
-        }
+            throw new ICanteenExtractorException.NoFoodMenuException("No food menu was present on the supplied URL!"); // NoFoodMenuException extends ICanteenExtractorException
     }
 }

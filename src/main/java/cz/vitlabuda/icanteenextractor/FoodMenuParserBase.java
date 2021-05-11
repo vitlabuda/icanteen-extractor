@@ -1,3 +1,5 @@
+package cz.vitlabuda.icanteenextractor;
+
 /*
 SPDX-License-Identifier: BSD-3-Clause
 
@@ -41,53 +43,28 @@ COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER I
 OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-import cz.vitlabuda.icanteenextractor.FoodMenu;
-import cz.vitlabuda.icanteenextractor.ICanteenExtractor;
-import cz.vitlabuda.icanteenextractor.ICanteenExtractorException;
-
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.Date;
 
-public class Test {
-    private static final SimpleDateFormat DATE_FORMATTER = new SimpleDateFormat("yyyy-MM-dd");
-
-    public static final String[] TEST_URLS = new String[] {
-            "https://strav.nasejidelna.cz/demo/login", // iCanteen 2.17.20
-            "https://strav.nasejidelna.cz/0117/login", // iCanteen 2.17.15
-            "https://strav.nasejidelna.cz/0051/login", // iCanteen 2.17.14
-            "http://82.117.143.136:8082/faces/login.jsp", // iCanteen 2.14.18
-            "https://intr.dmvm.cz:8443/login", // iCanteen 2.17.15
-            "https://strava.sps-chrudim.cz/faces/login.jsp", // iCanteen 2.14.15
-    };
-
-    public static final String TEST_USER_AGENT = "ICanteenExtractor-Test/" + ICanteenExtractor.LIBRARY_VERSION_STRING;
-    public static final int TEST_TIMEOUT = 2000; // in milliseconds
-
-    public static void main(String[] args) throws ICanteenExtractorException {
-        for(String url : TEST_URLS)
-            testURL(url);
+abstract class FoodMenuParserBase {
+    static class FoodMenuParserException extends Exception {
+        FoodMenuParserException(String message) {
+            super(message);
+        }
     }
 
-    private static void testURL(String url) throws ICanteenExtractorException {
-        System.out.printf("URL: %s\n", url);
+    private static final SimpleDateFormat DATE_FORMATTER = new SimpleDateFormat("yyyy-MM-dd");
 
+    abstract FoodMenu parseHTMLToFoodMenu(String html) throws Exception, Error; // it's not clear what Jsoup throws
 
-        ICanteenExtractor extractor = new ICanteenExtractor();
-        extractor.setUserAgent(TEST_USER_AGENT);
-        extractor.setTimeoutMilliseconds(TEST_TIMEOUT);
+    protected Date parseDateString(String dateString) throws FoodMenuParserException {
+        try {
+            String cutString = dateString.trim().substring(4); // cuts off the "day-" part
+            return DATE_FORMATTER.parse(cutString);
 
-        FoodMenu foodMenu = extractor.extract(url);
-
-        for(FoodMenu.Day day : foodMenu.getDays()) {
-            System.out.println(DATE_FORMATTER.format(day.getDate()));
-
-            for(FoodMenu.Dish dish : day.getDishes())
-                System.out.printf("- %s (%s): %s\n", dish.getDishName(), dish.getDishPlace(), dish.getDishDescription());
-
-            System.out.println();
+        } catch (IndexOutOfBoundsException | ParseException e) {
+            throw new FoodMenuParserException("The iCanteen date string is invalid! (" + dateString + ")");
         }
-
-
-        for(int i = 0; i < 3; i++)
-            System.out.println();
     }
 }

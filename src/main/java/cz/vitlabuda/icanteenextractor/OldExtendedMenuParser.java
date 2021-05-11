@@ -43,16 +43,38 @@ COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER I
 OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-/**
- * Exception thrown when no food menu is found on the iCanteen login page.
- */
-public class NoFoodMenuException extends ICanteenExtractorException {
-    /**
-     * Instantiates the NoFoodMenuException class.
-     *
-     * @param message The error message to carry.
-     */
-    public NoFoodMenuException(String message) {
-        super(message);
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
+
+class OldExtendedMenuParser extends FoodMenuParserBase {
+    @Override
+    FoodMenu parseHTMLToFoodMenu(String html) throws Exception, Error {
+        FoodMenu foodMenu = new FoodMenu();
+
+        Document document = Jsoup.parse(html);
+
+        for(Element jidelnicekDen : document.selectFirst(".jidelnicekWeb").select(".jidelnicekDen")) {
+            Elements jidelnicekDenChildren = jidelnicekDen.children();
+
+            String dateString = jidelnicekDenChildren.get(0).attr("id");
+            FoodMenu.Day day = new FoodMenu.Day(parseDateString(dateString));
+
+            for(Element dishDiv : jidelnicekDenChildren.get(1).children()) {
+                String dishName = dishDiv.selectFirst(".smallBoldTitle").text();
+                String dishPlace = dishDiv.child(1).text();
+                String dishDescription = dishDiv.ownText();
+
+                dishDescription = dishDescription.replaceAll("^(\\s*--)+", "");
+
+                FoodMenu.Dish dish = new FoodMenu.Dish(dishName, dishPlace, dishDescription);
+                day.getDishes().add(dish);
+            }
+
+            foodMenu.getDays().add(day);
+        }
+
+        return foodMenu;
     }
 }
